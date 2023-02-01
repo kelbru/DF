@@ -1,0 +1,69 @@
+---
+title: "DF Camera Trapping"
+author: "Kelly Bruno"
+date: "2023-01-31"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Download and Load Packages
+```{r}
+# list.of.packages <- c("activity",
+#                       "corrplot",
+#                       "cowplot",
+#                       "dplyr", 
+#                       "elevatr",
+#                       "gfcanalysis",  
+#                       "ggplot2",
+#                       "gridExtra",
+#                       "iNEXT",
+#                       "kableExtra",
+#                       "Hmsc",
+#                       "leaflet",
+#                       "lme4",
+#                       "lubridate",
+#                       "magrittr",
+#                       "MCMCvis",
+#                       "MODISTools",
+#                       "osmdata",
+#                       "pals",
+#                       "plotly",
+#                       "remotes",
+#                       "rmarkdown",
+#                       "sf",
+#                       "spOccupancy",
+#                       "stars",
+#                       "stringr",
+#                       "terra",
+#                       "tibble",
+#                       "tidyr", 
+#                       "unmarked",
+#                       "viridis",
+#                       "jtools",
+#                       "vegan",
+#                       "MuMIn",
+#                       "rgdal",
+#                       "usedist",
+#                       "taxize")
+# 
+# # A check to see which ones you have and which are missing
+# new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+# 
+# # Code which tells R to install the missing packages
+# if(length(new.packages)) install.packages(new.packages)
+# lapply(list.of.packages, require, character.only = TRUE)
+# 
+# # We use the remotes package to access package repositories not on the 
+# # CRAN interface (e.g. on github)
+# library(remotes)
+# 
+# remotes::install_github("RS-eco/traitdata")
+# remotes::install_github("arcaravaggi/remBoot")
+# remotes::install_github("annam21/spaceNtime")
+
+```
+
+
