@@ -1,0 +1,87 @@
+---
+title: "DF Camera Trapping"
+author: "Kelly Bruno"
+date: "2023-01-31"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Download and Load Packages
+```{r packages}
+# list.of.packages <- c("activity",
+#                       "corrplot",
+#                       "cowplot",
+#                       "dplyr", 
+#                       "elevatr",
+#                       "gfcanalysis",  
+#                       "ggplot2",
+#                       "gridExtra",
+#                       "iNEXT",
+#                       "kableExtra",
+#                       "Hmsc",
+#                       "leaflet",
+#                       "lme4",
+#                       "lubridate",
+#                       "magrittr",
+#                       "MCMCvis",
+#                       "MODISTools",
+#                       "osmdata",
+#                       "pals",
+#                       "plotly",
+#                       "remotes",
+#                       "rmarkdown",
+#                       "sf",
+#                       "spOccupancy",
+#                       "stars",
+#                       "stringr",
+#                       "terra",
+#                       "tibble",
+#                       "tidyr", 
+#                       "unmarked",
+#                       "viridis",
+#                       "jtools",
+#                       "vegan",
+#                       "MuMIn",
+#                       "rgdal",
+#                       "usedist",
+#                       "taxize")
+# 
+# # A check to see which ones you have and which are missing
+# new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+# 
+# # Code which tells R to install the missing packages
+# if(length(new.packages)) install.packages(new.packages)
+# lapply(list.of.packages, require, character.only = TRUE)
+# 
+# # We use the remotes package to access package repositories not on the 
+# # CRAN interface (e.g. on github)
+# library(remotes)
+# 
+# remotes::install_github("RS-eco/traitdata")
+# remotes::install_github("arcaravaggi/remBoot")
+# remotes::install_github("annam21/spaceNtime")
+```
+
+Backing up Data
+Pictures will be saved in "placename" folders with nested "deployment_id" folders i.e. folder "-2845.621" with folders "-2845.621_1_1", "-2845.621_1_2"
+
+Optional Preprocessing Steps
+
+- Rename camera image with unique codes (placename_datetime)
+- Use of AI labeler if you have many images to process (always check these)
+- Timelapse extraction (if you for example take a photo every day at noon) using a package such as phenopix
+
+
+#Metadata standardization
+We need to keep accurate records of data collection
+
+we are using the Wildlife Insights standards:
+- Project data "proj.Rda" a dataframe containing key information about the project itself
+- Image data "img.Rda" a dataframe containing all of the information contained within each image.
+- Deployment data "dep.Rda" a dataframe listing the activity of the camera traps involved in your study, and any issues encountered during deployments
+- Camera data "cam.Rda" a dataframe all the cameras deployed in the project
+
+

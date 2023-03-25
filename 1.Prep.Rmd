@@ -1,0 +1,77 @@
+---
+title: "1.Prep"
+author: "Kelly Bruno"
+date: "2023-03-11"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load data}
+library(dplyr)
+library(tidyr)
+library(ragtop)
+library(openxlsx)
+library(RcmdrMisc)
+
+original <- readXL('prep_data.xlsx', sheet = 'img')
+
+```
+
+```{r prepare img dataframe}
+
+img <- original
+
+img$project_id <- "Gate12"
+
+img$temp <- (original$Lon)*(original$Lat)
+img$temp <- format(round(img$temp, 4))
+img$temp <- as.factor(img$temp)
+levels(img$temp) #check levels (currently 12)
+img$placename <- img$temp
+
+
+img$deployment_id <- paste0(img$placename, "_", img$Session.ID) #unique code for each deployment (an interval between setting and retrieving a camera).
+
+img$is_blank <- if_else(is.blank(img$Species), 1, 0) #returns 1 if blank
+
+img$class <- if_else(img$Species %in% c("Colaptes auratus", "Dryocopus.pileatus", "Zenaida macroura"), "Aves", "Mammalia") #species should include list of all IDed mammals, this will classify everything else as an avian species
+
+
+img = rename(img, common_name = Common.Name, number_of_objects = Count, genus = Genus, species = Species) #rename columns
+
+
+img <- img %>% select(project_id, deployment_id, placename, is_blank, class, genus, species, common_name, timestamp, number_of_objects) #select columns to keep
+
+save(img ,file="img.Rda") #save
+
+```
+
+```{r prepare deployment dataframe}```{r prepare deployment dataframe}```{r prepare deployment dataframe}
+dep <- readXL('prep_data.xlsx', sheet = 'dep')
+  
+dep$temp <- (dep$longitude)*(dep$latitude)
+dep$temp <- format(round(dep$temp, 4))
+dep$temp <- as.factor(dep$temp)
+dep$placename <- dep$temp
+
+dep$deployment_id <- paste0(dep$placename, "_", dep$Session.ID) #unique code for each deployment (an interval between setting and retrieving a camera).
+  
+dep <- dep %>% select(project_id, deployment_id, placename, latitude, longitude, start_date, end_date, feature_type, camera_name, camera_functioning, recorded_by) #select columns to keep
+
+save(dep ,file="dep.Rda") #save
+```
+
+```{r prepare cam dataframe}
+cam <- readXL('prep_data.xlsx', sheet = 'cam')
+
+save(cam, file = "cam.Rda") #save
+```
+
+```{r prepare project dataframe}
+proj <- readXL('prep_data.xlsx', sheet = 'proj')
+
+save(proj, file = "proj.Rda") #save
+```
