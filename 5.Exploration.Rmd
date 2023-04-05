@@ -1,0 +1,267 @@
+---
+title: "Data exploration"
+author: "Kelly Bruno"
+date: "2023-04-05"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r prep}
+#clear environment
+rm(list =ls())
+
+# Check you have them and load them
+list.of.packages <- c("kableExtra", "tidyr", "leaflet", "dplyr", "viridis", "corrplot", "lubridate", "plotly")
+
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages)
+lapply(list.of.packages, require, character.only = TRUE)
+
+```
+
+```{r locations}
+locs <- read.csv("data/processed_data/DF_2022_camera_locations_and_covariates.csv")
+
+# If you want to color by a category do it here:
+category <- "feature_type"
+# First lets choose a category to color
+locs[,category] <- factor(locs[,category])
+col.cat <- turbo(length(levels(locs[,category])))
+# Add it to the dataframe
+locs$colours <- col.cat[locs[,category]]
+
+## install 'webshot' package
+library(devtools)
+#webshot::install_phantomjs(force = TRUE)
+## load packages
+library(leaflet)
+library(htmlwidgets)
+library(webshot)
+
+
+m <- leaflet() %>%
+  # Add a satellite image layer
+  addProviderTiles(providers$Esri.WorldImagery, group="Satellite") %>%  
+  addProviderTiles(providers$Esri.WorldTopoMap, group="Base") %>%     
+  addCircleMarkers(lng=locs$longitude, lat=locs$latitude,
+                   # Add a popup of the deployment code 
+                   popup=paste(locs$placename, locs[,category])) %>%
+  # add a layer control box to toggle between the layers
+  addLayersControl(
+    baseGroups = c("Satellite", "Base"),
+    options = layersControlOptions(collapsed = FALSE)
+  )
+m
+
+## save html to png
+saveWidget(m, "temp.html", selfcontained = FALSE)
+webshot("temp.html", file = "studyarea.png",
+        cliprect = "viewport")
+```
+
+
+```{r detections}
+# Also read in the species list
+sp_summary <- read.csv("data/processed_data/DF_2022_species_list.csv", header=T)
+
+
+#total captures
+total_obs <- read.csv("data/processed_data/Gate12_30min_independent_total_observations.csv", header=T)
+
+sp_summary[7,4] <-"White.tailed.deer"
+sp_summary[2,4] <- "North.American.beaver"
+  
+long_obs <- total_obs %>% 
+  pivot_longer(cols=sp_summary$common_name,  # The columns we want to create into rows - species
+               names_to="sp",       # What we what the number column to be called
+               values_to = "count") # Takes the values in the species columns and calls them `count`
+#each row is a unique species at a given location
+
+# We can them summaries those using dplyr
+tmp <- long_obs %>%                   # Take the long observation data frame `long_obs` 
+          group_by(sp) %>%            # Group by species
+          summarise(count=sum(count)) # Sum all the independent observations
+
+# Add it to the sp_summary dataframe
+sp_summary <- left_join(sp_summary, tmp, by = c("common_name" = "sp"))
+
+```
+
+
+```{r raw occu}
+# We use the mutate function to mutate the column
+total_binary <-  total_obs %>%    # The total obs dataframe              
+                    mutate(across(sp_summary$common_name, ~+as.logical(.x)))  # across all of the species columns, make it binary
+
+# Flip the dataframe to longer - as before
+long_bin <- total_binary %>% 
+  pivot_longer(cols=sp_summary$common_name, names_to="sp", values_to = "count") # Takes the species names columns, and makes them unique rows with "sp" as the key #presence/absence
+
+# We can now sum the presence/absences and divide by the number of survey locations
+tmp <- long_bin %>% 
+  group_by(sp) %>% 
+  summarise(occupancy=sum(count)/nrow(locs)) # divided the sum by the number of sites
+
+# add the results to the sp_summary
+sp_summary <- left_join(sp_summary, tmp, by = c("common_name" = "sp"))
+
+```
+
+```{r comparison plot}
+
+# Lets put the dataframes in a sensible order
+sp_summary <- sp_summary[order(sp_summary$count),]
+
+yform <- list(categoryorder = "array",
+              categoryarray = sp_summary$sp)
+
+xform <- list(title="Captures")
+
+# Capture rate
+fig1 <- plot_ly(x = sp_summary$count, y = sp_summary$sp, type = 'bar', orientation = 'h') %>% 
+ layout(yaxis = yform, xaxis=xform)
+
+yform <- list(categoryorder = "array",
+              categoryarray = sp_summary$sp,
+              showticklabels=F)
+xform <- list(title="Occupancy")
+
+
+# Occupancy
+fig2 <- plot_ly(x = sp_summary$occupancy, y = sp_summary$sp, type = 'bar', orientation = 'h') %>% 
+ layout(yaxis = yform, xaxis=xform)
+
+subplot(nrows=1,fig1, fig2, titleX = T) # We could stack them on top of one another using nrows=2
+
+```
+
+```{r temporal patterns}
+
+mon_obs <- read.csv("data/processed_data/Gate12_30min_independent_monthly_observations.csv", header=T)
+
+# Count up the number of stations and the number of camera nights
+mon_summary <- mon_obs %>%                  # Use the monthly observations dataframe
+            group_by(date) %>%              # Group by the date
+            summarise(locs_active=n(),      # Count the number of active cameras
+                      cam_days=sum(days))   # And sum the active days 
+
+
+# Add in the species specific counts - and join it with the mon_summary dataframe
+mon_summary <- mon_obs %>% 
+                group_by(date) %>%  
+                summarise(across(sp_summary$common_name, sum, na.rm=TRUE)) %>% # summarise across all of 
+                                                                      # the species columns 
+                left_join(x=mon_summary)   # Join with the mon_summary dataframe
+
+# We first need to convert the date column to a date object
+mon_summary$date <- ym(mon_summary$date)
+
+# Set up a two panel plot (side by side)
+par(mfrow=c(1,2))
+
+plot(mon_summary$date, mon_summary$locs_active,
+     type="o", 
+     pch=19,
+     ylim=c(0, max(mon_summary$locs_active)),
+     las=1, 
+     ylab="Number of cameras active", xlab="Date")
+
+
+# Sum all the captures rates for the species columns
+mon_summary$all.sp <- rowSums(mon_summary[, sp_summary$common_name])
+
+# Plot them
+plot(mon_summary$date, mon_summary$all.sp/(mon_summary$cam_days/100),
+     type="o",
+     pch=19,
+     las=1, ylab="Detections per 100 cam days", xlab="Date")
+
+```
+
+
+```{r capture rates}
+
+par(mfrow=c(2,2))
+i <- 1
+for(i in 1:length(sp_summary$common_name))
+{
+  plot(mon_summary$date, pull(mon_summary, sp_summary$common_name[i])/(mon_summary$cam_days/100),  # The pull command allows you to grab a specific column in a dataframe and turn it into a vector!
+     type="o",
+     pch=19,
+     las=1, ylab="Detections per 100 cam days", xlab="Date",
+     main=sp_summary$common_name[i])
+}
+
+```
+
+```{r spaital patterns WTdeer}
+
+total_obs <- left_join(total_obs, locs)
+
+focal_species <- "White.tailed.deer"
+
+focal_cr <- pull(total_obs, focal_species)/(total_obs$days/100)
+
+m <- leaflet() %>%
+  addProviderTiles(providers$Esri.WorldTopoMap, group="Base") %>%     
+  addCircleMarkers(lng=locs$longitude, lat=locs$latitude,
+                   # Add a popup of the deployment code 
+                   popup=paste(locs$placename),
+                   radius=(focal_cr/max(focal_cr)*10)+1, stroke=F,
+                   fillOpacity=0.6) 
+m
+
+
+saveWidget(m, "temp.html", selfcontained = FALSE)
+webshot("temp.html", file = "spaitaldeer.png",
+        cliprect = "viewport")
+```
+
+```{r species co-occurences}
+#Blue colors = positive correlation -> at locations where you have high counts of one species, you also have high counts of the paired species.
+
+#Red colors = negative correlation -> at locations where you have high counts of one species, then you are likely to have low counts of the species pair (or vice-versa).
+
+# Reset the plot parameters
+par(mfrow=c(1,1))
+
+# Pull the data for each of the species from 
+tmp <- total_obs[, sp_summary$common_name]
+M <- cor(tmp)
+
+corrplot(M, method="color", 
+         type="upper", 
+         order="hclust",
+         # addCoef.col = "black", # We suppress the coefs to make a cleaner plot
+         tl.col="black", tl.srt=45, #Text label color and rotation
+         diag=FALSE
+         )
+
+```
+
+```{r check covs}
+str(locs)
+
+locs <- locs %>% 
+            mutate_if(is.character,as.factor) # If a column is a character string, make it a factor
+
+total_obs <- left_join(total_obs, locs)
+
+#plot
+
+ggplot(data=total_obs, 
+       aes(x=road_dist_m, y=Common.Racoon)) + 
+       geom_point() +                   # Specify a scatter plot
+       theme_classic() +  
+       geom_smooth(method=lm, se=T, fullrange=TRUE)   #theme
+
+ggplot(data=total_obs, 
+       aes(x=road_dist_m, y=Coyote)) + 
+       geom_point() +                   # Specify a scatter plot
+       theme_classic() +  
+       geom_smooth(method=lm, se=T, fullrange=TRUE)   #theme
+
+```
