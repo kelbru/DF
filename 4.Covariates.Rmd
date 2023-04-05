@@ -1,0 +1,195 @@
+---
+title: "Covariates"
+author: "Kelly Bruno"
+date: "2023-04-05"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load data and packages}
+
+library(kableExtra);library(dplyr); library(sf); library(MODISTools); library(lubridate); library(corrplot); library(traitdata); library(terra); library(osmdata); library(elevatr)
+
+# Start by reading in your species list
+sp_summary <- read.csv("data/processed_data/Gate12_common_name_list.csv", header=T)
+#rm last row (error)
+sp_summary <- sp_summary[-12,]
+
+#location level covs
+locs <- read.csv("data/processed_data/Gate12_camera_locations.csv", header=T)
+
+```
+
+2 categories of covariate options
+ a. Species traits
+Traits are species-level covariates which we think are important in structuring their responses to other covariates, such as human modification
+ b. Location-level covariates
+ Location-level covariates are characteristics of the camera locations which are either fundamental to your question (such as the habitat type, degree of human modification, or distance to the nearest road), or they are things you are not directly interested in but must account for in your analyses.
+ 
+```{r trait covariates}
+
+#use package traitdata to add species traits
+# This package isn't available on Cran, so we must use the remotes package
+library(remotes)
+remotes::install_github("RS-eco/traitdata", build_vignettes = T, force=T)
+# Load the library
+library(traitdata)
+
+#one of many datasets available
+data("elton_mammals")
+
+ head(elton_mammals) %>% kbl() %>% scroll_box(height = "200px") %>%
+  kable_paper("striped", full_width = F)
+ 
+#create column which matches species column in sp_summary dataset
+elton_mammals$sp <- paste0(elton_mammals$Genus,"." ,elton_mammals$Species)
+
+#subset to body mass value and activity data
+tmp <- elton_mammals[, c("sp","BodyMass.Value", "Activity.Nocturnal", "Activity.Crepuscular",   "Activity.Diurnal")]
+
+# Lets rename the columns to make them more usable
+tmp <- tmp %>% rename(
+              mass_g = BodyMass.Value,
+              act_noct = Activity.Nocturnal,
+              act_crep = Activity.Crepuscular,
+              act_diur = Activity.Diurnal)
+
+sp_summary <- left_join(sp_summary, tmp)
+
+#check output
+sp_summary %>% kbl() %>% scroll_box(height = "200px") %>%
+  kable_paper("striped", full_width = F)
+
+#ignore NAs as these are not identified to species level or are aves
+
+write.csv(sp_summary, paste0("data/processed_data/", locs$project_id[1],"_species_list.csv"), row.names = F)
+
+```
+ 
+Link to traitdata datasets: https://opentraits.org/datasets.html
+
+```{r camera station covs}
+
+#check locations
+m <- leaflet() %>%             # call leaflet
+        addProviderTiles(providers$Esri.WorldImagery) %>% # add imagery
+        addCircleMarkers(      # Add circles for stations
+          lng=locs$longitude, lat=locs$latitude, #these were wrong?
+          popup=paste(locs$placename)) # include a popup with the placename!
+m                      
+
+
+#Lets convert our “normal” dataframe to an sf dataframe:
+locs_sf <- st_as_sf(locs,                              # We specify the dataframe 
+                    coords=c("longitude", "latitude"), # The XY coordinates
+                    crs=4326)                          # And the projection code
+
+locs_utm <- st_transform(locs_sf, crs=26712)
+
+#plot points
+plot(st_geometry(locs_utm))
+axis(1)
+axis(2)
+
+#we could add local raster data here if we had it
+#we can add elevation data
+library(elevatr)
+locs_sf <- get_elev_point(locs_sf, 
+                          src="aws", #Amazon Web Service Terrain Tiles - available globally
+                          z = 12)  # z specifies the zoom level, the lower the value the faster the code runs, but the coarser the elevation values are (units are in m)
+boxplot(locs_sf$elevation) #small range as expected
+
+#use Open Street Map (OSM) to generate other loc covariates
+library(osmdata)
+
+# First buffer our points to create an area of interest (aoi)
+aoi <- st_bbox(st_buffer(locs_sf, 100)) # Units are in meters 
+
+##Roads
+#highway includes all roads and paths
+highway <- opq(aoi) %>% #using the bounding box
+           add_osm_feature(key="highway") %>% #extract all highway features
+           osmdata_sf()  # convert them into simple features format
+
+par(mfrow=c(1,3))
+plot(st_geometry(highway$osm_points), main="osm_points")
+plot(st_geometry(highway$osm_lines), main="osm_lines")
+plot(st_geometry(highway$osm_polygons), main="osm_polygons")
+
+par(mfrow=c(1,1))
+plot(st_as_sfc(aoi))     # st_as_sfc created a polygon from a `bbox` object
+plot(st_geometry(highway$osm_lines), add=T)
+plot(st_geometry(locs_sf), col="red", add=T)
+
+# Create an index of the nearest object in `highway$osm_lines` to locs_sf
+index <- st_nearest_feature(locs_sf, highway$osm_lines)
+
+# Use that index to ask for the distance to that object
+locs_sf$road_dist_m <- st_distance(locs_sf, highway$osm_lines[index,], 
+                                   by_element=T) # Note `by_element=T` tells st_distance to evaluate things line by line. 
+
+##water bodies
+#we know there is a pond at the site so this might not be useful
+
+# First buffer our points to create an area of interest (aoi)
+aoi <- st_bbox(st_buffer(locs_sf, 1000)) # Units are in meters
+
+water <- opq(aoi) %>%
+           add_osm_feature(key="water") %>%
+           osmdata_sf()
+
+par(mfrow=c(1,3))
+plot(st_geometry(water$osm_points), main="osm_points")
+# plot(st_geometry(water$osm_lines), main="osm_lines")
+# plot(st_geometry(water$osm_polygons), main="osm_polygons")
+index <- st_nearest_feature(locs_sf, water$osm_points)
+
+locs_sf$water_dist_m <- st_distance(locs_sf, water$osm_points[index,], by_element=T) # Note `by_element=T` tells st_distance to evaluate things line by line.
+
+
+#many more options for extraction, but not useful in such a small study area
+```
+
+OSM feature types: https://wiki.openstreetmap.org/wiki/Map_features
+
+```{r convert covs}
+# Convert columns to numeric
+locs_sf$road_dist_m <- as.numeric(locs_sf$road_dist_m)
+
+locs_sf$water_dist_m <- as.numeric(locs_sf$water_dist_m)
+
+# Convert it back to a dataframe
+locs_sf$geometry <- NULL
+
+locs <- left_join(locs, locs_sf)
+
+
+# Write the dataset
+
+write.csv(locs, paste0("data/processed_data/", locs$project_id[1],"_camera_locations_and_covariates.csv"), row.names=F)
+```
+
+
+```{r correlations}
+
+library(corrplot)
+
+# First we need to create a correlation matrix between the different variables of interest
+M <- cor(locs[, c("elevation",
+                     "road_dist_m", "water_dist_m")])
+
+corrplot(M,                              #The correlation matrix we made
+         method="color",                 # How we want the cells 
+         type="upper",                   # Just show the upper part (it is usually mirrored)
+         order="hclust",                 # Order the variables using the hclust method
+         addCoef.col = "black",          # Add coefficient of correlation  
+         tl.col="black", tl.srt=45,      # Control the text label color and rotation
+         diag=F                          # Suppress the diagonal correlations (which are 1 anyway)
+         )
+
+#if we are seeing pairwise correlations >0.7 we perhaps shouldn’t include those in the same model
+#high correlation between road and water distance - lets take water out of the model
+```
