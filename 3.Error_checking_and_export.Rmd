@@ -11,11 +11,17 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r load data and packages}
 rm(list = ls()) #clear environment
+
+library(dplyr)
+
 load("proj.Rda")
 pro <- proj
 load("img.Rda")
 load("dep.Rda")
 load("cam.Rda")
+
+img$common_name <- as.factor(img$common_name)
+img$common_name <- recode(img$common_name, "Common Racoon" = "Common Raccoon")
 
 list.of.packages <- c(
                       "leaflet",       # creates interactive maps
