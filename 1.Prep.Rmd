@@ -27,7 +27,6 @@ img <- original
 img$project_id <- "Gate12"
 
 img$temp <- (original$Lon)*(original$Lat)
-img$temp <- format(round(img$temp, 4))
 img$temp <- as.factor(img$temp)
 levels(img$temp) #check levels (currently 19)
 img$placename <- img$temp
@@ -53,7 +52,6 @@ save(img ,file="img.Rda") #save
 dep <- readXL('prep_data.xlsx', sheet = 'dep')
   
 dep$temp <- (dep$longitude)*(dep$latitude)
-dep$temp <- format(round(dep$temp, 4))
 dep$temp <- as.factor(dep$temp)
 dep$placename <- dep$temp
 
