@@ -31,11 +31,12 @@ sp_summary <- read.csv("data/processed_data/DF_2022_species_list.csv", header=T)
 
 # Use nrow() to count the number of species
 nrow(sp_summary)
-sp_summary[7,4] <-"White.tailed.deer"
-sp_summary[2,4] <- "North.American.beaver"
-sp_summary[8,4] <- "Common.Raccoon"
+sp_summary[4,4] <- "Great.Blue.Heron"
+sp_summary[13,4] <-"White.tailed.deer"
+sp_summary[8,4] <- "North.American.beaver"
+sp_summary[15,4] <- "Eastern.Gray.Squirrel"
 
-#11 species observed
+#18 species observed
 
 ```
 
@@ -48,7 +49,7 @@ To see if your camera project has sufficient survey effort to capture the specie
 ```{r estimated richness}
 library(iNEXT); library(ggplot2); library(gridExtra)
 
-total_obs <- read.csv("data/processed_data/Gate12_30min_independent_total_observations.csv", header=T)
+total_obs <- read.csv("data/processed_data/Gate12_20min_independent_total_observations.csv", header=T)
 
 inc_dat <- total_obs %>% 
       mutate(across(sp_summary$common_name, ~+as.logical(.x)))  # Turn species counts into 0's and 1's
@@ -91,18 +92,20 @@ ggsave(p3, file = "richness.jpg")
 ```{r regression}
 
 # Import the total observations dataset
-total_obs <- read.csv("data/processed_data/Gate12_30min_independent_total_observations.csv", header=T)
+total_obs <- read.csv("data/processed_data/Gate12_20min_independent_total_observations.csv", header=T)
 
 # Import your species list
 sp_summary <- read.csv("data/processed_data/DF_2022_species_list.csv", header=T)
-sp_summary[7,4] <-"White.tailed.deer"
-sp_summary[2,4] <- "North.American.beaver"
-sp_summary[8,4] <- "Common.Raccoon"
+sp_summary[4,4] <- "Great.Blue.Heron"
+sp_summary[13,4] <-"White.tailed.deer"
+sp_summary[8,4] <- "North.American.beaver"
+sp_summary[15,4] <- "Eastern.Gray.Squirrel"
 
 #create the capture rate - our proxy for habitat use
 # Create a dataframe to store these detection rates
 total_cr <- total_obs
 # Divide the species abundances (which start in column four), by the amount of camera effort
+sp_summary <- sp_summary[-16,]#rm error row
 total_cr[ ,sp_summary$common_name ] <- (total_cr[ , sp_summary$common_name]/total_cr$days)*10
 
 #examine relationship between raw counts (x) and detection rate (y)
@@ -149,8 +152,12 @@ summary(lm_deer_roads) #roads not significant
 lm_raccoon_roads <- lm(Common.Raccoon ~ z.elevation, data = mod_dat)
 
 summary(lm_raccoon_roads) #not significant
+
+
+##try with temperature???
 ```
 
+Try linear model with temperature
 
 ```{r season model}
 
@@ -158,7 +165,7 @@ library(lme4); library(tidyr)
 library(lubridate)
 
 # Import the total observations dataset
-monthly_obs <- read.csv("data/processed_data/Gate12_30min_independent_monthly_observations.csv", header=T)
+monthly_obs <- read.csv("data/processed_data/Gate12_20min_independent_monthly_observations.csv", header=T)
 
 monthly_obs$placename <- as.factor(monthly_obs$placename)
 z_locs$placename <- as.factor(z_locs$placename)
@@ -170,7 +177,8 @@ mod_dat$month<- month(mod_dat$date, label=T)
 
 # Lets create a new column for season
 mod_dat$season <- "fall"
-mod_dat$season[month(mod_dat$date) %in% c(12,1,2,3)] <- "winter"
+mod_dat$season[month(mod_dat$date) %in% c(12,1,2)] <- "winter"
+mod_dat$season[month(mod_dat$date) %in% c(3,4)] <- "spring"
 
 # make it a factor
 mod_dat <- mod_dat %>% 
@@ -186,7 +194,13 @@ summary(glmm_cat) #sig effect season
 library(jtools)
 effect_plot(glmm_cat, pred = season, interval = TRUE, y.label = "Habitat use", data=mod_dat)
 
-#suggests lower habitat use in winter for WT deer
+#mixed effect model - Response term ~ fixed effect + offset() + (1|random intercept), data frame, distribution
+
+glmm_cat <- glmer.nb(Virginia.opossum ~ 
+                    season + offset(log(days)) + (1|placename) , data=mod_dat)
+
+summary(glmm_cat) #not sig effect season
+
 
 ```
 
@@ -212,16 +226,14 @@ lapply(list.of.packages, require, character.only = TRUE)
 #Single species models (week as time interval)
 
 # Import the daily observations data set
-day_obs <- read.csv("data/processed_data/Gate12_30min_independent_daily_observations.csv", header=T)
+day_obs <- read.csv("data/processed_data/Gate12_20min_independent_daily_observations.csv", header=T)
 
 
 ##Detection History
 # Use white-tailed deer
 focal_sp <- "White.tailed.deer"
 
-# subset to 2022
-tmp_day <- day_obs[substr(day_obs$date,1,4)==2022,]
-
+tmp_day <- day_obs
 # Create the Y data  
 y_dat <- tmp_day[,c("placename", "date", focal_sp)] %>% # Subset to just white-tailed deer
             pivot_wider(names_from = date, values_from = focal_sp) # Shift to wide format
@@ -256,7 +268,7 @@ locs <-  read.csv("data/processed_data/DF_2022_camera_locations_and_covariates.c
 # 
 # locs <- locs %>% arrange(factor(placename, levels = order))
 
-locs <- locs[-c(10,11),]
+locs <- locs[-c(10),]
 
 # Unmarked wants your detection history, effort data and site covariates as matrices. But the order is important!
 # Check the order of your matrices and covariates files matches... or you will get nonsense!
@@ -278,8 +290,8 @@ m0 <- occu(formula = ~1 # detection formula first
 summary(m0) #estimates on log-link scale
 
 
-backTransform(m0, type = "state") #probabilities (very high, also p-value > 0.05)
-backTransform(m0, type = "det") # ~ 0.42
+backTransform(m0, type = "state") #probabilities 0.99 (very high, also p-value > 0.05)
+backTransform(m0, type = "det") # ~ 0.37
 
 # See if occupancy is influence by elevation
 m1 <- occu(formula = ~1 # detection formula first
@@ -288,7 +300,81 @@ m1 <- occu(formula = ~1 # detection formula first
 
 summary(m1)
 
-model.sel #null better
+model.sel(m0, m1) #null better
+```
+
+```{r occupancy 2}
+# Use Raccoon
+focal_sp <- "Common.Raccoon"
+
+tmp_day <- day_obs
+# Create the Y data  
+y_dat <- tmp_day[,c("placename", "date", focal_sp)] %>% # Subset to just white-tailed deer
+            pivot_wider(names_from = date, values_from = focal_sp) # Shift to wide format
+
+# Convert it to a matrix - but only keep the date values
+y_mat <- as.matrix(y_dat[,unique(tmp_day$date)])
+
+# Update the row names
+row.names(y_mat) <- y_dat$placename
+# Where y_mat is > 1, and where y_mat isn't NA - give it the value 1 [should only have 0, 1 or NA]
+y_mat[y_mat>1 & is.na(y_mat)==F] <- 1
+
+
+##Effort Matrix
+# To create the effort matrix - inst of the Focal Species bring in the effort
+eff_mat <- tmp_day[,c("placename", "date", "days")]
+
+eff_mat <-  eff_mat %>%
+  # Create a matrix based on dates and effort
+  spread(date,days, fill = NA) %>% 
+  # group by deloyment Location ID, then make that the row.namesd
+  group_by(placename) %>%
+  column_to_rownames( var = "placename") 
+
+eff_mat <- as.matrix(eff_mat)
+
+locs <-  read.csv("data/processed_data/DF_2022_camera_locations_and_covariates.csv")
+
+# order <- c("-2845.595", "-2845.621", "-2845.631", "-2845.652", "-2845.701", "-2845.706", "-2845.707", "-2845.733", "-2845.745", "-2845.746", "-2845.764", "-2845.786")
+# 
+# locs$placename <- as.factor(locs$placename)
+# 
+# locs <- locs %>% arrange(factor(placename, levels = order))
+
+locs <- locs[-c(10),]
+
+# Unmarked wants your detection history, effort data and site covariates as matrices. But the order is important!
+# Check the order of your matrices and covariates files matches... or you will get nonsense!
+table(locs$placename == row.names(y_mat)) #problem solved
+
+#standardize data
+library(MuMIn)
+z_locs <- stdize(locs)
+
+# Build an unmarkedFramOccu
+un_dat <- unmarkedFrameOccu(y = y_mat, # your occupancy data
+                            siteCovs = z_locs) # Your site covariates 
+
+# Fit general model all variables (null)
+m0 <- occu(formula = ~1 # detection formula first
+                     ~1, # occupancy formula second,
+                data = un_dat)
+
+summary(m0) #estimates on log-link scale
+
+
+backTransform(m0, type = "state") #probabilities 0.56
+backTransform(m0, type = "det") # ~ 0.072
+
+# See if occupancy is influence by elevation
+m1 <- occu(formula = ~1 # detection formula first
+                     ~z.elevation, # occupancy formula second,
+                data = un_dat)
+
+summary(m1)
+
+model.sel(m0, m1) #null better
 ```
 
 Activity
@@ -323,7 +409,7 @@ tmp <- solartime ( img_locs$timestamp, # the date time column
                    tz=-4,              # an offset in numeric hours to UTC (EST is 4 hours behind)
                    format="%Y-%m-%d %H:%M:%S")
 
-# Although we want to use solar time, let's add both incase you want to explore the implications
+# Although we want to use solar time, let's add both in case you want to explore the implications
 img_locs$solar <- tmp$solar
 img_locs$clock <- tmp$clock
 
@@ -345,6 +431,27 @@ jpeg(filename = "raccoon_activity_model.jpg")
 plot(m2)
 dev.off()
 
+# Fit an activity model
+m3 <- fitact(img_locs$solar[img_locs$common_name=="Coyote"], sample="model", reps=100)
+
+jpeg(filename = "coyote_activity_model.jpg")
+plot(m3)
+dev.off()
+
+# Fit an activity model
+m4 <- fitact(img_locs$solar[img_locs$common_name=="Virginia opossum"], sample="model", reps=100)
+
+jpeg(filename = "opossum_activity_model.jpg")
+plot(m4)
+dev.off()
+
+# Fit an activity model
+m5 <- fitact(img_locs$solar[img_locs$common_name=="Eastern Gray Squirrel"], sample="model", reps=100)
+
+jpeg(filename = "squirrel_activity_model.jpg")
+plot(m5)
+dev.off()
+
 plot(m2, yunit="density", data="none", las=1, lwd=2,
      tline=list(lwd=2), # Thick line 
      cline=list(lty=0)) # Supress confidence intervals
@@ -353,8 +460,23 @@ plot(m1, yunit="density", data="none", add=TRUE,
      tline=list(col="red", lwd=2),
      cline=list(lty=0))
 
-legend("topright", c("Raccoon", "Deer"), col=1:2, lty=1, lwd=2)
+plot(m3, yunit="density", data="none", add=TRUE, 
+     tline=list(col="blue", lwd=2),
+     cline=list(lty=0))
 
+plot(m4, yunit="density", data="none", add=TRUE, 
+     tline=list(col="purple", lwd=2),
+     cline=list(lty=0))
+
+plot(m5, yunit="density", data="none", add=TRUE, 
+     tline=list(col="orange", lwd=2),
+     cline=list(lty=0))
+
+par(mar=c(0, 0, 0, 0))
+# c(bottom, left, top, right)
+plot.new()
+legend('center','groups', c("Raccoon", "Deer", "Coyote", "Virginia opossum", "Eastern gray squirrel"), lty = 1,
+       col= c("black", "red", "blue", "purple", "orange"),ncol=2,bty ="n")
 #we can compare their overlap as well!
 # Note reps reduced to speed up running time - people typically use 1000. The coefficient ranges from 0 (no overlap) to 1 (complete overlap)
 compareCkern(m1, m2, reps = 100) #reasonably high overlap ~0.76
@@ -369,18 +491,25 @@ m1 <- fitact(img_locs$solar[img_locs$common_name=="White-tailed deer" &         
 
 
 m2 <- fitact(img_locs$solar[img_locs$common_name=="White-tailed deer" &
-                              img_locs$month %in% c("Dec", "Jan", "Feb", "Mar")], sample="model", reps=100)
+                              img_locs$month %in% c("Dec", "Jan", "Feb")], sample="model", reps=100)
+
+m3 <- fitact(img_locs$solar[img_locs$common_name=="White-tailed deer" &
+                              img_locs$month %in% c("Mar", "Apr")], sample="model", reps=100)
 
 
 plot(m2, yunit="density", data="none", las=1, lwd=2,
-     tline=list(lwd=2), # Thick line 
+     tline=list(col = "orange", lwd=2), # Thick line 
      cline=list(lty=0)) # Supress confidence intervals
 
 plot(m1, yunit="density", data="none", add=TRUE, 
-     tline=list(col="red", lwd=2),
+     tline=list(col="blue", lwd=2),
      cline=list(lty=0))
 
-legend("topright", c("Fall", "Winter"), col=1:2, lty=1, lwd=2)
+plot(m3, yunit="density", data="none", add=TRUE, 
+     tline=list(col="darkgreen", lwd=2),
+     cline=list(lty=0))
+
+legend("topright", c("Fall", "Winter", "Spring"), col= c("orange", "blue", "darkgreen"), lty=1, lwd=2)
 
 ```
 

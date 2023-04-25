@@ -1,12 +1,19 @@
 "class","genus","species","common_name","sp","mass_g","act_noct","act_crep","act_diur"
-"Mammalia","Canis","latrans","Coyote","Canis.latrans",13406.33,1,1,0
-"Mammalia","Castor","canadensis","North.American beaver","Castor.canadensis",21820,1,1,0
-"Mammalia","Colaptes","auratus","Northern.flicker","Colaptes.auratus",NA,NA,NA,NA
-"Mammalia","Didelphis","virginiana","Virginia.opossum","Didelphis.virginiana",2195.48,1,0,0
-"Mammalia","Dryocopus","pileatus","Pileated.woodpecker","Dryocopus.pileatus",NA,NA,NA,NA
-"Mammalia","Mus","sp.","Mouse","Mus.sp.",NA,NA,NA,NA
-"Mammalia","Odocoileus","virginianus","White-tailed.deer","Odocoileus.virginianus",55508.56,1,1,0
-"Mammalia","Procyon","lotor","Common.Racoon","Procyon.lotor",5524.97,1,0,0
-"Mammalia","Sciurus","carolinensis","Gray.squirrel","Sciurus.carolinensis",506.5,0,0,1
-"Mammalia","Vulpes","sp.","Fox","Vulpes.sp.",NA,NA,NA,NA
-"Mammalia","Zenaida","macroura","Mourning.dove","Zenaida.macroura",NA,NA,NA,NA
+"Aves","Branta","Branta canadensis","Canada.goose","Branta.canadensis",NA,NA,NA,NA
+"Aves","Colaptes","Colaptes auratus","Northern.flicker","Colaptes.auratus",NA,NA,NA,NA
+"Aves","Dryocopus","Dryocopus pileatus","Pileated.woodpecker","Dryocopus.pileatus",NA,NA,NA,NA
+"Aves","Odocoileus","Ardea herodias","Great.Blue Heron","Ardea.herodias",NA,NA,NA,NA
+"Aves","Zenaida","Zenaida macroura","Mourning.dove","Zenaida.macroura",NA,NA,NA,NA
+"Mammalia","Canis","Canis familiaris","Domestic.dog","Canis.familiaris",NA,NA,NA,NA
+"Mammalia","Canis","Canis latrans","Coyote","Canis.latrans",13406.33,1,1,0
+"Mammalia","Castor","Castor canadensis","North.American beaver","Castor.canadensis",21820,1,1,0
+"Mammalia","Didelphis","Didelphis virginiana","Virginia.opossum","Didelphis.virginiana",2195.48,1,0,0
+"Mammalia","Felis","Felis catus","Domestic.cat","Felis.catus",2884.8,1,1,1
+"Mammalia","Mus","Mus sp.","Unidentified.mouse","Mus.sp.",NA,NA,NA,NA
+"Mammalia",NA,NA,"Unknown.bird",NA,NA,NA,NA,NA
+"Mammalia","Odocoileus","Odocoileus virginianus","White-tailed.deer","Odocoileus.virginianus",55508.56,1,1,0
+"Mammalia","Procyon","Procyon lotor","Common.Raccoon","Procyon.lotor",5524.97,1,0,0
+"Mammalia","Sciurus","Sciurus carolinensis","Eastern.Gray Squirrel","Sciurus.carolinensis",506.5,0,0,1
+"Mammalia","Unknown","Unknown","Unidentified.mouse","Unknown",NA,NA,NA,NA
+"Mammalia","Unknown","Unknown","Unidentified.species","Unknown",NA,NA,NA,NA
+"Mammalia","Vulpes","Vulpes sp.","Fox","Vulpes.sp.",NA,NA,NA,NA

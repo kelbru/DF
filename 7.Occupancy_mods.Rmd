@@ -1,0 +1,150 @@
+---
+title: "Analysis"
+author: "Kelly Bruno"
+date: "2023-04-24"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r campop}
+library(camtrapR)
+library(purrr)
+library(DT)
+library(knitr)
+library(ggplot2)
+library(dplyr)
+
+load("img.Rda")
+load("dep.Rda")
+
+dep <- dep[-c(10,20),] #remove cams that did not work
+img <- subset(img, placename != "-2845.70050464237")
+
+#subset to only species with >10 detections
+img$species <- gsub("canis latrans", "Canis latrans", img$species)
+img$species <- gsub("Didelphis marsupialis", "Didelphis virginiana", img$species)
+
+img %>%
+  group_by(species) %>%
+  summarise(count = n())
+
+img <- subset(img, species %in% c("Branta canadensis", "Canis latrans", "Didelphis virginiana", "Odocoileus virginianus", "Procyon lotor", "Sciurus carolinensis"))
+
+#check deployment ids
+img$deployment_id <- as.factor(img$deployment_id)
+dep$deployment_id <- as.factor(dep$deployment_id)
+
+setdiff(levels(img$deployment_id), levels(dep$deployment_id))
+setdiff(levels(dep$deployment_id), levels(img$deployment_id))
+
+#remove all issues
+dep <- subset(dep, deployment_id != "-2845.7428558824_8_6")
+dep <- subset(dep, deployment_id != "-2845.73307183234_5_2")
+img <- subset(img, deployment_id != "-2845.59487417065_1_3")
+
+
+#create camera operation dataframe
+camop <- cameraOperation(CTtable = dep, stationCol   = "deployment_id", setupCol = "start_date", retrievalCol = "end_date",hasProblems  = FALSE, dateFormat   = "ymd" )
+
+#create list of detection histories
+
+ # list of detection histories
+DetHist <- lapply(unique(img$species), FUN = function(x) {
+   detectionHistory(
+     recordTable         = img,
+     camOp                = camop,
+     stationCol           = "deployment_id",
+     speciesCol           = "species",
+     recordDateTimeCol    = "timestamp",
+     species              = x,     # this gets modifies by lapply
+     occasionLength       = 1,
+     day1                 = "station",
+     datesAsOccasionNames = FALSE,
+     includeEffort        = TRUE,
+     scaleEffort          = FALSE
+   )}
+ )
+
+ # assign species names to the list items
+names(DetHist) <- unique(img$species)
+# note, DetHist_list is a list containing a list for each species
+
+ylist <- lapply(DetHist, FUN = function(x) x$detection_history)
+#Get the detection history of each species and put into a new list
+
+sitecovs <- subset(dep, select = c(deployment_id, latitude, longitude, start_date))
+
+sitecovs$Month <- format(as.Date(sitecovs$start_date), "%m")
+
+
+library(lme4); library(tidyr)
+library(lubridate)
+# Lets create a new column for season
+sitecovs$season <- "fall"
+sitecovs$season[(sitecovs$Month) %in% c("12","01","02")] <- "winter"
+sitecovs$season[(sitecovs$Month) %in% c("03","04")] <- "spring"
+
+
+sitecovs$season <- as.factor(sitecovs$season)
+
+data_list <- list(ylist  = ylist,
+                   siteCovs = sitecovs,
+                   obsCovs  = list(effort = DetHist[[1]]$effort))  # is identical for all species 
+#Now data_list is a list containing the detection histories, site covariates and occasion level covariates.
+```
+
+```{r fit models}
+
+# text file to save the model
+modelfile1 <- tempfile(fileext = ".txt")
+
+ mod.jags <- communityModel(data_list,
+                            occuCovs = list(fixed = "season"),
+                            detCovsObservation = list(fixed = "effort"),
+                            modelFile = modelfile1)
+ 
+summary(mod.jags)
+#6 species,  52 stations,  38 occasions
+#722 occasions with effort
+#Number of detections (by species): 11 - 267
+library(snowfall)
+library(rjags)
+
+fit.jags <- fit(mod.jags,
+                 n.iter = 5000,
+                 n.burnin = 2500,
+                 chains = 3)
+```
+
+```{r model check}
+
+fit_summary <- summary(fit.jags)
+
+# Note, colors may not render correctly in dark themes in RStudio.
+
+#statistics of parameter estimates
+DT::datatable(round(fit_summary$statistics, 3))
+#bpvalue = bayesian p-value, betas give occ probs
+#Lack of fit at significance level = 0.05 is indicated by Bayesian p-values below 0.025 or greater than 0.975
+
+#quantiles
+DT::datatable(round(fit_summary$quantiles, 3))
+
+#effects plot occ (season)
+ plot_effects(mod.jags,
+              fit.jags,
+              submodel = "state")
+ 
+#effects plot det (effort)
+ plot_effects(mod.jags,
+              fit.jags,
+              submodel = "det")
+
+#plot coefficent estimates 
+plot_eff_jags_occu <- plot_coef(mod.jags, 
+                                fit.jags)
+plot_eff_jags_occu
+```

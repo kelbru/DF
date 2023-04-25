@@ -11,12 +11,14 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r load data and packages}
 
+rm(list = ls())
+
 library(kableExtra);library(dplyr); library(sf); library(MODISTools); library(lubridate); library(corrplot); library(traitdata); library(terra); library(osmdata); library(elevatr)
 
 # Start by reading in your species list
 sp_summary <- read.csv("data/processed_data/Gate12_common_name_list.csv", header=T)
 #rm last row (error)
-sp_summary <- sp_summary[-12,]
+sp_summary <- sp_summary[-34,-8]
 
 #location level covs
 locs <- read.csv("data/processed_data/Gate12_camera_locations.csv", header=T)
@@ -34,7 +36,7 @@ Traits are species-level covariates which we think are important in structuring 
 #use package traitdata to add species traits
 # This package isn't available on Cran, so we must use the remotes package
 library(remotes)
-remotes::install_github("RS-eco/traitdata", build_vignettes = T, force=T)
+#remotes::install_github("RS-eco/traitdata", build_vignettes = T, force=T)
 # Load the library
 library(traitdata)
 
@@ -63,8 +65,10 @@ sp_summary <- left_join(sp_summary, tmp)
 sp_summary %>% kbl() %>% scroll_box(height = "200px") %>%
   kable_paper("striped", full_width = F)
 
-#ignore NAs as these are not identified to species level or are aves
+#rm weird genus issue
+sp_summary <- sp_summary[-c(5,14,29,9,20,27,23,26,21,15,7,8,12,24,28),]
 
+#ignore NAs as these are not identified to species level or are aves
 write.csv(sp_summary, paste0("data/processed_data/", locs$project_id[1],"_species_list.csv"), row.names = F)
 
 ```
@@ -72,6 +76,10 @@ write.csv(sp_summary, paste0("data/processed_data/", locs$project_id[1],"_specie
 Link to traitdata datasets: https://opentraits.org/datasets.html
 
 ```{r camera station covs}
+## load packages
+library(leaflet)
+library(htmlwidgets)
+library(webshot)
 
 #check locations
 m <- leaflet() %>%             # call leaflet
@@ -80,7 +88,9 @@ m <- leaflet() %>%             # call leaflet
           lng=locs$longitude, lat=locs$latitude, #these were wrong?
           popup=paste(locs$placename)) # include a popup with the placename!
 m                      
-
+saveWidget(m, "temp.html", selfcontained = FALSE)
+webshot("temp.html", file = "studyarea_new.png",
+        cliprect = "viewport")
 
 #Lets convert our “normal” dataframe to an sf dataframe:
 locs_sf <- st_as_sf(locs,                              # We specify the dataframe 

@@ -69,14 +69,16 @@ sp_summary <- read.csv("data/processed_data/DF_2022_species_list.csv", header=T)
 
 
 #total captures
-total_obs <- read.csv("data/processed_data/Gate12_30min_independent_total_observations.csv", header=T)
+total_obs <- read.csv("data/processed_data/Gate12_20min_independent_total_observations.csv", header=T)
 
-sp_summary[7,4] <-"White.tailed.deer"
-sp_summary[2,4] <- "North.American.beaver"
-  
+sp_summary[4,4] <- "Great.Blue.Heron"
+sp_summary[8,4] <- "North.American.beaver"
+sp_summary[13,4] <-"White.tailed.deer"
+sp_summary[15,4] <-"Eastern.Gray.Squirrel"
+
 long_obs <- total_obs %>% 
-  pivot_longer(cols=sp_summary$common_name,  # The columns we want to create into rows - species
-               names_to="sp",       # What we what the number column to be called
+  pivot_longer(cols = sp_summary$common_name,  # The columns we want to create into rows - species
+               names_to = "sp",       # What we what the number column to be called
                values_to = "count") # Takes the values in the species columns and calls them `count`
 #each row is a unique species at a given location
 
@@ -140,7 +142,7 @@ subplot(nrows=1,fig1, fig2, titleX = T) # We could stack them on top of one anot
 
 ```{r temporal patterns}
 
-mon_obs <- read.csv("data/processed_data/Gate12_30min_independent_monthly_observations.csv", header=T)
+mon_obs <- read.csv("data/processed_data/Gate12_20min_independent_monthly_observations.csv", header=T)
 
 # Count up the number of stations and the number of camera nights
 mon_summary <- mon_obs %>%                  # Use the monthly observations dataframe
@@ -253,7 +255,7 @@ total_obs <- left_join(total_obs, locs)
 #plot
 
 ggplot(data=total_obs, 
-       aes(x=road_dist_m, y=Common.Racoon)) + 
+       aes(x=road_dist_m, y=Common.Raccoon)) + 
        geom_point() +                   # Specify a scatter plot
        theme_classic() +  
        geom_smooth(method=lm, se=T, fullrange=TRUE)   #theme
